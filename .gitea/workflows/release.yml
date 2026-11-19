@@ -1,0 +1,37 @@
+name: Release
+
+# Bump `version` in manifest.yaml and VERSION in Makefile, then push a matching v* tag.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fetch Kandev SDK
+        run: git clone --depth 1 --branch v0.94.0 https://github.com/kdlbs/kandev ../kandev
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Verify tag matches manifest
+        run: |
+          VERSION="$(sed -nE 's/^version: "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' manifest.yaml)"
+          test "v$VERSION" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != manifest v$VERSION" >&2; exit 1; }
+      - name: Test and package
+        run: |
+          make vet
+          make test
+          make package
+          tar -xzf kandev-plugin-authentik-*.tar.gz checksums.txt
+      - uses: akkuman/gitea-release-action@v1
+        with:
+          files: |
+            kandev-plugin-authentik-*.tar.gz
+            checksums.txt

@@ -1,0 +1,64 @@
+id: "kandev-plugin-authentik"
+api_version: 2
+version: "0.1.0"
+min_kandev_version: "0.94.0"
+display_name: "Authentik SSO"
+description: "Sign in to Kandev with an Authentik OAuth2/OpenID Connect provider."
+author: "Michał Flak"
+categories: ["connector"]
+repo_url: "https://github.com/elo-siema/kandev-authentik"
+
+runtime:
+  type: binary
+  executables:
+    linux-amd64: "server/plugin-linux-amd64"
+    linux-arm64: "server/plugin-linux-arm64"
+    darwin-amd64: "server/plugin-darwin-amd64"
+    darwin-arm64: "server/plugin-darwin-arm64"
+    windows-amd64: "server/plugin-windows-amd64.exe"
+
+# auth: the callback asserts the verified Authentik identity to Kandev, which
+# mints the session itself (ADR 0050).
+capabilities:
+  auth: true
+
+# Both are hit by a visitor with no Kandev session, so they must be public.
+webhooks:
+  - key: "login"
+    description: "Starts the login and redirects to Authentik"
+    method: "GET"
+    access: public
+  - key: "callback"
+    description: "OAuth2 redirect URI"
+    method: "GET"
+    access: public
+
+auth_providers:
+  - id: "authentik"
+    display_name: "Authentik"
+    initiate: "login"
+
+config_schema:
+  type: object
+  required: ["issuer", "client_id", "client_secret", "kandev_url"]
+  properties:
+    issuer:
+      type: string
+      title: "OpenID issuer"
+      description: "The provider's 'OpenID Configuration Issuer', copied exactly, e.g. https://authentik.example.com/application/o/kandev/"
+    client_id:
+      type: string
+      title: "Client ID"
+    client_secret:
+      type: string
+      title: "Client secret"
+      secret: true
+    kandev_url:
+      type: string
+      title: "Kandev URL"
+      description: "Public root URL of this Kandev instance, e.g. https://kandev.example.com. The redirect URI is <Kandev URL>/api/plugins/kandev-plugin-authentik/webhooks/callback."
+    trust_unverified_email:
+      type: boolean
+      title: "Trust unverified emails"
+      default: false
+      description: "Use the email claim even when Authentik does not send email_verified: true. Only enable this if users cannot change their own email in Authentik; otherwise anyone can take over a Kandev member account by claiming its email."
